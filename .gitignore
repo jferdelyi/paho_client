@@ -21,12 +21,18 @@
 *.smod
 
 # Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+#*.lai
+#*.la
+#*.a
+#*.lib
 
 # Executables
 *.exe
 *.out
 *.app
+
+# Build
+build/*
+
+# macOS
+.DS_Store
