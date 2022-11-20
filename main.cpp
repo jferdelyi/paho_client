@@ -11,7 +11,7 @@ static bool s_connection_initialized_once = false;
 
 int initialise(const std::string& p_id, const std::string& p_host = "localhost", const int p_port = 1883) {
 	try {
-		std::string& m_connection_address = "tcp://" + p_host + ":" + std::to_string(p_port);
+		std::string m_connection_address = "tcp://" + p_host + ":" + std::to_string(p_port);
 		s_wrapper = new MQTTClient(p_id, m_connection_address);
 		return mqtt::ReasonCode::SUCCESS;
 	} catch (std::exception& p_exception) {
