@@ -9,7 +9,13 @@ list(APPEND SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mqtt.hpp
 )
 include_directories("${CMAKE_CURRENT_LIST_DIR}/include")
-link_directories("${CMAKE_CURRENT_LIST_DIR}/lib")
+link_directories("${CMAKE_CURRENT_LIST_DIR}/lib/debug")
 
-add_executable(paho_client ${SOURCES})
-target_link_libraries(paho_client paho-mqtt3as paho-mqttpp3-static)
+IF (WIN32)
+    link_directories("${CMAKE_CURRENT_LIST_DIR}/lib")
+    add_executable(paho_client ${SOURCES})
+    target_link_libraries(paho_client paho-mqtt3as-static paho-mqttpp3-static libcrypto64MD.lib libssl64MD.lib ws2_32.lib Advapi32.lib User32.lib)
+ELSE()
+    add_executable(paho_client ${SOURCES})
+    target_link_libraries(paho_client paho-mqtt3as-static paho-mqttpp3-static)
+ENDIF()

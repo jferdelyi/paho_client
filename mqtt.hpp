@@ -8,12 +8,6 @@
  * This could be used to initiate further action
  */
 class ActionListener : public virtual mqtt::iaction_listener {
-	protected:
-
-		/**
-		 * Name of the callback
-		 */
-		std::string m_name;
 
 	public:
 
@@ -21,8 +15,7 @@ class ActionListener : public virtual mqtt::iaction_listener {
 		 * Constructor
 		 * @param p_name the name of the callback
 		 */
-		ActionListener(const std::string& p_name) : 
-			m_name(p_name) {}
+		ActionListener() {}
 
 	protected:
 
@@ -31,7 +24,7 @@ class ActionListener : public virtual mqtt::iaction_listener {
 		 * @param p_token the token
 		 */
 		void on_failure(const mqtt::token& p_token) override {
-			std::cout << m_name << " failure";
+			std::cout << " failure";
 			if (p_token.get_message_id() != 0) {
 				std::cout << " for token: [" << p_token.get_message_id() << "]" << std::endl;
 			}
@@ -43,7 +36,7 @@ class ActionListener : public virtual mqtt::iaction_listener {
 		 * @param p_token the token
 		 */
 		void on_success(const mqtt::token& p_token) override {
-			std::cout << m_name << " success";
+			std::cout << " success";
 			if (p_token.get_message_id() != 0) {
 				std::cout << " for token: [" << p_token.get_message_id() << "]" << std::endl;
 			}
@@ -65,16 +58,6 @@ class Callback : public virtual mqtt::callback, public virtual mqtt::iaction_lis
 	protected:
 
 		/**
-		 * Retry count
-		 */
-		int m_retry_count;
-
-		/**
-		 * Retry attemps
-		 */
-		int m_retry_attempts;
-
-		/**
 		 * The client
 		 */
 		mqtt::async_client& m_client;
@@ -89,33 +72,12 @@ class Callback : public virtual mqtt::callback, public virtual mqtt::iaction_lis
 		/**
 		 * Constructor
 		 * @param p_client the client
-		 * @param p_retry_attempts retry attemps
 		 * @param p_connecton_options options to use if we need to reconnect
 		 */
-		Callback(mqtt::async_client& p_client, const int p_retry_attempts, mqtt::connect_options& p_connecton_options) : 
-			m_retry_count(0),
-			m_retry_attempts(p_retry_attempts),
+		Callback(mqtt::async_client& p_client, mqtt::connect_options& p_connecton_options) : 
 			m_client(p_client), 
 			m_connecton_options(p_connecton_options) {}
 
-		/**
-		 * Reconnecting to the broker by calling connect() again. 
-		 * 
-		 * This is a possibility for an application that keeps
-		 * a copy of it's original connect_options, or if the app wants to
-		 * reconnect with different options.
-		 * Another way this can be done manually, if using the same options, is
-		 * to just call the async_client::reconnect() method.
-		 */
-		void reconnect() {
-			std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-			try {
-				m_client.connect(m_connecton_options, nullptr, *this);
-			}
-			catch (const mqtt::exception& exc) {
-				std::cerr << "Error: " << exc.what() << std::endl;
-			}
-		}
 
 		/**
 		 * Re-connection failure
@@ -123,9 +85,6 @@ class Callback : public virtual mqtt::callback, public virtual mqtt::iaction_lis
 		 */
 		void on_failure(const mqtt::token& p_token) override {
 			std::cout << "Connection attempt failed" << std::endl;
-			if (++m_retry_count < m_retry_attempts) {
-				reconnect();
-			}
 		}
 
 		/**
@@ -155,9 +114,6 @@ class Callback : public virtual mqtt::callback, public virtual mqtt::iaction_lis
 			if (!p_cause.empty()) {
 				std::cout << "\tcause: " << p_cause << std::endl;
 			}
-			std::cout << "Reconnecting..." << std::endl;
-			m_retry_count = 0;
-			reconnect();
 		}
 
 		/**
@@ -197,11 +153,6 @@ class MQTTClient : public mqtt::async_client {
 			ActionListener m_subscription_listener;
 
 			/**
-			 * An action listener to display the result of actions.
-			 */
-			ActionListener m_publishing_listener;
-
-			/**
 			 * Connection options.
 			 */
 			mqtt::connect_options m_connection_options;
@@ -221,8 +172,7 @@ class MQTTClient : public mqtt::async_client {
 			MQTTClient (const std::string& p_id, const std::string& p_host = "tcp://localhost:1883") :
 				mqtt::async_client(p_host, p_id),
 				m_server_address(p_host),
-				m_subscription_listener("Subscription"),
-				m_publishing_listener("Publishing"),
+				m_subscription_listener(),
 				m_connection_options(),
 				m_callback(nullptr) {
 			}
@@ -243,7 +193,7 @@ class MQTTClient : public mqtt::async_client {
 			int connect_to(const bool p_clean_session = true, const int p_keep_alive = 60) {
 				m_connection_options.set_clean_session(p_clean_session);
 				m_connection_options.set_keep_alive_interval(p_keep_alive);
-				m_callback = new Callback(*this, 5, m_connection_options);
+				m_callback = new Callback(*this, m_connection_options);
 
 				set_callback(*m_callback);
 
@@ -256,10 +206,19 @@ class MQTTClient : public mqtt::async_client {
 			}
 
 			/**
+			 * Reconnect to the broker
+			 * @return the reason code, if something wrong happen. 0 = OK (see https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901031)
+			 */
+			int reconnect_to() {
+				const auto& l_token = reconnect();
+				return l_token->get_reason_code();
+			}
+
+			/**
 			 * Connect to the broker
 			 * @return the reason code, if something wrong happen. 0 = OK (see https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901031)
 			 */
-			int disconnect_to_broker() {
+			int disconnect_to() {
 				const auto& l_token = disconnect();
 				return l_token->get_reason_code();
 			}
